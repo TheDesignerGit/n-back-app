@@ -15,6 +15,7 @@
     <body></body>
     <script>
         const jspsych = initJsPsych({
+            // on_trial_start: function(data){console.log(data), 'working'},
             // on_finish: function(){
                 
             //     jspsych.data.displayData('csv') // show data on screen
@@ -53,20 +54,25 @@
         const trialDuration = 3000
         const trialCount = 10
         let storageCount = 0
+        let correct_matches = 0
+        let incorrect_matches = 0
+        
 
         // .:. Instructions Page
         const instructions = {
             type: jsPsychHtmlKeyboardResponse,
             stimulus: function() {
-                stored_scores = JSON.parse(localStorage.getItem('scores'))
+                let prev_scores = ''
 
-                let list_item = stored_scores.slice(stored_scores.length - 5).map(x => {return `<li style="list-style: none">${x}</li>`})
-
-                let prev_scores = `
-                <div style="margin: 80px auto 0 auto; border: 1px black solid; border-radius: 20px; width: 300px">
-                    <div style="font-size: 24px; margin-top: 30px">Last 5 Scores:</div>
-                    <ul style="padding: 0">${list_item.join('')}</ul>
-                </div>`
+                if(localStorage.getItem('scores')){
+                    stored_scores = JSON.parse(localStorage.getItem('scores'))
+                    let list_item = stored_scores.slice(stored_scores.length - 5).map(x => {return `<li style="list-style: none">${x.toFixed(1)}%</li>`})
+                    prev_scores = `
+                    <div style="margin: 80px auto 0 auto; border: 1px black solid; border-radius: 20px; width: 300px">
+                        <div style="font-size: 24px; margin-top: 30px">Last 5 Scores:</div>
+                        <ul style="padding: 0">${list_item.join('')}</ul>
+                    </div>`
+                }
 
                 let base = `
                 <div style="font-size: 32px">N-Back Level: <b>${nback_level}</b></div>
@@ -86,11 +92,13 @@
         let nback_trial = {
             type: jsPsychHtmlKeyboardResponse,
             stimulus: function () {
+                console.log('sequence so far:', sequence)
                 if(sequence.length < nback_level) { // eg. for 2-back, first 2 letters will be randomly selected
                     randomLetter = jspsych.randomization.sampleWithoutReplacement(nback_set, 1)[0] // this function returns an array
                 } else {
-                    if(jspsych.timelineVariable('match', true)){ // current trial is match ... 
+                    if(jspsych.timelineVariable('match', true)){ // current trial is match ...  cos function returns a function, "true" = return a value
                         randomLetter = sequence[sequence.length - nback_level] // if current trial is match, show the letter from eg. two trials ago
+                        console.log('current letter:', randomLetter)
                     } else {
                         possibleLetters = jspsych.randomization.sampleWithoutReplacement(nback_set, 2) // "w/out replace. = no repeat letters"
                         if (possibleLetters[0] != sequence[sequence.length - nback_level]){
@@ -112,11 +120,18 @@
             },
             on_finish: function (data) {
                 if(data.match == true) { // if the current trial is a match
-                    data.correct = (data.response == 'f') // add new column to data (object)
-                    // console.log(data.response)
+                    // data.correct = (data.response == 'f') // add new column to data (object)
+                    if(data.response == 'f'){
+                        data.correct = true // add new column to data (object)
+                        correct_matches++
+                    }
                 }
                 if (data.match == false) {
-                    data.correct = (data.response == null)
+                    // data.correct = (data.response == null) // if user did not press key
+                    if(data.response != null){
+                        incorrect_matches++
+                    }
+                    // data.correct = null
                 }
             }
         }
@@ -146,7 +161,11 @@
                     return data.trial_index > nback_level-1     // based on nback level, filter out eg. the first 2 items
                 })
                 let correct_trials = trials.filter({correct: true});
-                let accuracy = Math.round(correct_trials.count() / trials.count() * 100);
+                let match_trials = trials.filter({match: true});
+                let accuracy = (Math.round(Math.max((correct_trials.count() - incorrect_matches), 0) / match_trials.count() * 100)) // ".max" stops negative %
+
+                console.log('Incorrect matches: ', incorrect_matches)
+                console.log('Correct matches: ', correct_matches)
 
                 // .:. update localstorage 
                 if (localStorage.getItem('scores') == null) {
@@ -156,24 +175,29 @@
                 if (localStorage.getItem('scores')){
                     let stored_scores = JSON.parse(localStorage.getItem('scores'))
 
-                    const filtered = jspsych.data.get().filterCustom(function(data){
-                        return data.trial_index > nback_level-1     // based on nback level, filter out eg. the first 2 items
-                    })
-                    // console.log(filtered)
-                    let count = 0
-                    filtered.trials.forEach(x => {
-                        if (x.correct) {count ++}
-                    })
-                    let lastScore = count / (trialCount - nback_level) * 100
+                    // const filtered = jspsych.data.get().filterCustom(function(data){
+                    //     return data.trial_index > nback_level-1     // based on nback level, filter out eg. the first 2 items
+                    // })
+                    // // console.log(filtered)
+                    // let count = 0
+                    // filtered.trials.forEach(x => {
+                    //     if (x.correct) {count ++}
+                    // })
+                    // let lastScore = (count / (trialCount - nback_level) * 100)
 
-                    stored_scores.push(lastScore) // add last score
-                    console.table('score(s): ', stored_scores)
+                    stored_scores.push(accuracy) // add last score
+                    // console.table('score(s): ', stored_scores)
                     localStorage.setItem(`scores`, JSON.stringify(stored_scores))
                 }
 
-                return `<div style="font-size: 32px">You responded correctly on <b>${accuracy}</b>% of the trials.</div>`;
+                return `
+                <div style="font-size: 32px">You responded correctly on <b>${accuracy}</b>% of the trials.</div>
+                <div style="font-size: 24px; margin-top: 40px">Total matches shown: <b>${match_trials.count()}</b></div>
+                <div style="font-size: 24px">Number of correct matches: <b>${correct_matches}</b></div>
+                <div style="font-size: 24px">Number of incorrect matches: <b>${incorrect_matches}</b></div>
+                `;
             },
-            // trial_duration: 5000,
+            response_ends_trial: false
         }
         timeline.push(summary)
 

@@ -51,11 +51,15 @@
         const sequence = []   // to keep track of letters already shown
         let randomLetter = null // to store the current letter
         const nback_level = 2
-        const trialDuration = 3000
-        const trialCount = 10
-        let storageCount = 0
-        let correct_matches = 0
-        let incorrect_matches = 0
+        const recursive_level = 1
+        const trialDuration = 1500
+        const trialCount = 40
+        let correct_matches_found = 0
+        let incorrect_matches = 0       // time user press key when there is no match
+        let correct_recursive_matches = 0
+        let incorrect_recursive_matches = 0
+        let recursive_match_count = 0 // how many actual recursive matches have been shown
+        const match_sequence = []
         
 
         // .:. Instructions Page
@@ -66,7 +70,13 @@
 
                 if(localStorage.getItem('scores')){
                     stored_scores = JSON.parse(localStorage.getItem('scores'))
-                    let list_item = stored_scores.slice(stored_scores.length - 5).map(x => {return `<li style="list-style: none">${x.toFixed(1)}%</li>`})
+                    let list_item = stored_scores.slice(stored_scores.length - 5).map(x => {        // get th last 5 results
+                        let y 
+                        if(x.length > 3) {      // if number's length is too long, shorten it
+                            y = x.toFixed(1)
+                        } else {y = x}
+                        return `<li style="list-style: none">${y}%</li>`
+                    })
                     prev_scores = `
                     <div style="margin: 80px auto 0 auto; border: 1px black solid; border-radius: 20px; width: 300px">
                         <div style="font-size: 24px; margin-top: 30px">Last 5 Scores:</div>
@@ -75,15 +85,16 @@
                 }
 
                 let base = `
-                <div style="font-size: 32px">N-Back Level: <b>${nback_level}</b></div>
-                <div style="font-size: 32px; margin-top: 20px">Trial Count: <b>${trialCount}</b></div>
-                <div style="font-size: 24px; margin-top: 40px">Press the <b>F</b> key when there is an <i>n-back</i> match.</div>
+                <div style="font-size: 32px; margin-bottom: 10px">N-Back Level: <b>${nback_level}</b></div>
+                <div style="font-size: 32px; margin-top: 5px">Recursive Level: <b>${recursive_level}</b></div>
+                <div style="font-size: 32px; margin-top: 30px">Trial Count: <b>${trialCount}</b></div>
+                <div style="font-size: 24px; margin-top: 60px">Press the <b>F</b> key when there is an <i>n-back</i> match.</div>
                 <div style="font-size: 24px">Press the <b>A</b> key when there is a <i>recursive</i> match.</div>
                 <div style="font-size: 24px; margin-top: 60px">Press the <b>spacebar</b> to start.</div>
                 `
                 return `<div> ${base} ${prev_scores}</div>`;
             },
-            choices: [" "],
+            choices: [" "], // " " = spacebar
             post_trial_gap: 1000
         }
         timeline.push(instructions)
@@ -92,13 +103,14 @@
         let nback_trial = {
             type: jsPsychHtmlKeyboardResponse,
             stimulus: function () {
-                console.log('sequence so far:', sequence)
                 if(sequence.length < nback_level) { // eg. for 2-back, first 2 letters will be randomly selected
                     randomLetter = jspsych.randomization.sampleWithoutReplacement(nback_set, 1)[0] // this function returns an array
                 } else {
                     if(jspsych.timelineVariable('match', true)){ // current trial is match ...  cos function returns a function, "true" = return a value
                         randomLetter = sequence[sequence.length - nback_level] // if current trial is match, show the letter from eg. two trials ago
-                        console.log('current letter:', randomLetter)
+                        match_sequence.push(randomLetter)
+                        console.log('match sequence:', match_sequence)
+                        console.log('sequence so far:', sequence)
                     } else {
                         possibleLetters = jspsych.randomization.sampleWithoutReplacement(nback_set, 2) // "w/out replace. = no repeat letters"
                         if (possibleLetters[0] != sequence[sequence.length - nback_level]){
@@ -111,7 +123,7 @@
                 sequence.push(randomLetter) // add letter to sequence
                 return `<div style="font-size: 96px;">${randomLetter}</div>`  // return random letter
             },
-            choices: ["f"], // what keyboard keys can be used
+            choices: ["f", "a"], // what keyboard keys can be used
             trial_duration: trialDuration, // maximum time of trial. stops trial running indefinitely
             response_ends_trial: false, // keypress will not cut trial short
             post_trial_gap: 500,
@@ -121,17 +133,34 @@
             on_finish: function (data) {
                 if(data.match == true) { // if the current trial is a match
                     // data.correct = (data.response == 'f') // add new column to data (object)
-                    if(data.response == 'f'){
+                    if (data.response == 'f'){
                         data.correct = true // add new column to data (object)
-                        correct_matches++
+                        correct_matches_found++   // record a correct n-back match response
+                    }
+                    if(match_sequence.length > recursive_level) { // logic for recursion
+                        // console.log(match_sequence.slice(-1)[0], match_sequence[recursive_level])
+                        // console.log(match_sequence.slice(-1)[0], match_sequence[(match_sequence.length - 1) - recursive_level])
+                        if(match_sequence.slice(-1)[0] == match_sequence[(match_sequence.length - 1) - recursive_level]){
+                            console.log('recursive match!')
+                            recursive_match_count++     // count that user has seen a recursive match
+                            if(data.response == 'a') {
+                                correct_recursive_matches++     // record a correct recursive match response
+                                correct_matches_found++       // record a correct n-back match response
+                                data.correct = true 
+                            }
+                            if(data.response == null) {
+                                incorrect_recursive_matches++       // user failed to respond to a recursive match
+                            }
+                        }
                     }
                 }
                 if (data.match == false) {
                     // data.correct = (data.response == null) // if user did not press key
-                    if(data.response != null){
-                        incorrect_matches++
+                    // if(data.response != null){
+                    if(data.response == 'f'){
+                        incorrect_matches++ // user pressed key on a non-match trial
                     }
-                    // data.correct = null
+                    if (data.response == 'a'){incorrect_recursive_matches++}
                 }
             }
         }
@@ -164,8 +193,13 @@
                 let match_trials = trials.filter({match: true});
                 let accuracy = (Math.round(Math.max((correct_trials.count() - incorrect_matches), 0) / match_trials.count() * 100)) // ".max" stops negative %
 
-                console.log('Incorrect matches: ', incorrect_matches)
-                console.log('Correct matches: ', correct_matches)
+                console.log('Correct N-back matches: ', correct_matches_found)
+                console.log('Incorrect N-back matches: ', incorrect_matches)
+                console.log('Total Recursive matches seen: ', recursive_match_count)
+                console.log('Correct Recursive matches: ', correct_recursive_matches)
+                console.log('Incorrect Recursive matches: ', incorrect_recursive_matches)
+
+                let recursive_accuracy = Math.round(Math.max((correct_recursive_matches - incorrect_recursive_matches), 0) / recursive_match_count * 100)
 
                 // .:. update localstorage 
                 if (localStorage.getItem('scores') == null) {
@@ -185,17 +219,30 @@
                     // })
                     // let lastScore = (count / (trialCount - nback_level) * 100)
 
-                    stored_scores.push(accuracy) // add last score
+                    stored_scores.push(Number.isNaN(accuracy) ? 0 : accuracy) // add last score
                     // console.table('score(s): ', stored_scores)
                     localStorage.setItem(`scores`, JSON.stringify(stored_scores))
                 }
 
-                return `
-                <div style="font-size: 32px">You responded correctly on <b>${accuracy}</b>% of the trials.</div>
-                <div style="font-size: 24px; margin-top: 40px">Total matches shown: <b>${match_trials.count()}</b></div>
-                <div style="font-size: 24px">Number of correct matches: <b>${correct_matches}</b></div>
-                <div style="font-size: 24px">Number of incorrect matches: <b>${incorrect_matches}</b></div>
-                `;
+                let nback_summary = `
+                    <div style="border: 1px black solid; border-radius: 20px; padding: 30px">
+                        <div style="font-size: 52px;margin-bottom: 30px;font-style: italic">${nback_level}-Back</div>
+                        <div style="font-size: 32px">You responded correctly on <b>${Number.isNaN(accuracy) ? 0 : accuracy}</b>% of the trials.</div>
+                        <div style="font-size: 24px; margin-top: 40px">Total matches shown: <b>${match_trials.count()}</b></div>
+                        <div style="font-size: 24px">Number of correct matches: <b>${correct_matches_found}</b></div>
+                        <div style="font-size: 24px">Number of incorrect matches: <b>${incorrect_matches}</b></div>
+                    </div>
+                `
+                let recursive_summary = `
+                    <div style="border: 1px black solid; border-radius: 20px; padding: 30px; margin-top:60px">
+                        <div style="font-size: 52px;margin-bottom: 30px;font-style: italic">Recursive ${recursive_level}-Back</div>
+                        <div style="font-size: 32px">You responded correctly on <b>${Number.isNaN(recursive_accuracy)? 0 : recursive_accuracy}</b>% of the trials.</div>
+                        <div style="font-size: 24px; margin-top: 40px">Total matches shown: <b>${recursive_match_count}</b></div>
+                        <div style="font-size: 24px">Number of correct matches: <b>${correct_recursive_matches}</b></div>
+                        <div style="font-size: 24px">Number of incorrect matches: <b>${incorrect_recursive_matches}</b></div>
+                    </div>
+                `
+                return `${nback_summary} ${recursive_match_count>0 ? recursive_summary : ""}`;
             },
             response_ends_trial: false
         }

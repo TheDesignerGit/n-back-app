@@ -11,6 +11,49 @@
             rel="stylesheet"
             type="text/css"
         />
+        <style>
+            body {
+                background: #55423d;
+                color: #fff3ec;
+                /* color: #140d0b */
+            }
+            .border-orange {
+                background: #ffc0ad;
+                border: 3px #140d0b solid !important;
+            }
+
+            .border-white {
+                background: #fff3ec;
+                border-radius: 10px;
+                padding: 5px;
+                color: #140d0b;
+                border: 3px #140d0b solid
+            }
+            .border-pink {
+                background: #e78fb3;;
+                border-radius: 10px;
+                padding: 5px;
+                color: #140d0b;
+                border: 3px #140d0b solid
+            }
+
+            .pink-text {
+                color: #e78fb3
+            }
+            .purple-text {
+                color: #9656a1
+            }
+            .white-text {
+                color: #fff3ec;
+            }
+
+            ul li::before {
+                content: "\2022";
+                color: #fff3ec;
+                margin-right: 6px;
+            }
+
+        </style>
     </head>
     <body></body>
     <script>
@@ -50,9 +93,9 @@
         const nback_set = "BCDFGHJKLMNPQRSTVWXYZ".split('') // set of all possible letters in the experiment. no vowels
         const sequence = []   // to keep track of letters already shown
         let randomLetter = null // to store the current letter
-        const nback_level = 2
+        const nback_level = 3
         const recursive_level = 1
-        const trialDuration = 1500
+        const trialDuration = 3000
         const trialCount = 40
         let correct_matches_found = 0
         let incorrect_matches = 0       // time user press key when there is no match
@@ -75,19 +118,24 @@
                         if(x.length > 3) {      // if number's length is too long, shorten it
                             y = x.toFixed(1)
                         } else {y = x}
-                        return `<li style="list-style: none">${y}%</li>`
+                        return `<li>${y}%</li>`
                     })
                     prev_scores = `
-                    <div style="margin: 80px auto 0 auto; border: 1px black solid; border-radius: 20px; width: 300px">
-                        <div style="font-size: 24px; margin-top: 30px">Last 5 Scores:</div>
-                        <ul style="padding: 0">${list_item.join('')}</ul>
+                    <div style="margin: 80px auto 0 auto; border: 1px black solid; border-radius: 20px; width: 300px; color: #140d0b" class='border-orange'>
+                        <div style="font-size: 21px; margin: 15px 0; font-weight: bold;">Last 5 Scores:</div>
+                        <hr style="height: 2px; border: none; background: black;">
+                        <ul 
+                            style="padding: 10px; width: fit-content; margin: 0 auto; list-style: none" 
+                            class="bullet">
+                            ${list_item.join('')}
+                        </ul>
                     </div>`
                 }
 
                 let base = `
-                <div style="font-size: 32px; margin-bottom: 10px">N-Back Level: <b>${nback_level}</b></div>
-                <div style="font-size: 32px; margin-top: 5px">Recursive Level: <b>${recursive_level}</b></div>
-                <div style="font-size: 32px; margin-top: 30px">Trial Count: <b>${trialCount}</b></div>
+                <div style="font-size: 32px; margin-bottom: 10px">N-Back Level: <b class='pink-text'>${nback_level}</b></div>
+                <div style="font-size: 32px; margin-top: 5px">Recursive Level: <b class='pink-text'>${recursive_level}</b></div>
+                <div style="font-size: 32px; margin-top: 30px">Trial Count: <b class='pink-text'>${trialCount}</b></div>
                 <div style="font-size: 24px; margin-top: 60px">Press the <b>F</b> key when there is an <i>n-back</i> match.</div>
                 <div style="font-size: 24px">Press the <b>A</b> key when there is a <i>recursive</i> match.</div>
                 <div style="font-size: 24px; margin-top: 60px">Press the <b>spacebar</b> to start.</div>
@@ -225,21 +273,24 @@
                 }
 
                 let nback_summary = `
-                    <div style="border: 1px black solid; border-radius: 20px; padding: 30px">
+                    <div 
+                        style="border: 1px black solid; border-radius: 20px; padding: 30px; color: #140d0b" 
+                        class="border-orange">
                         <div style="font-size: 52px;margin-bottom: 30px;font-style: italic">${nback_level}-Back</div>
-                        <div style="font-size: 32px">You responded correctly on <b>${Number.isNaN(accuracy) ? 0 : accuracy}</b>% of the trials.</div>
-                        <div style="font-size: 24px; margin-top: 40px">Total matches shown: <b>${match_trials.count()}</b></div>
-                        <div style="font-size: 24px">Number of correct matches: <b>${correct_matches_found}</b></div>
-                        <div style="font-size: 24px">Number of incorrect matches: <b>${incorrect_matches}</b></div>
+                        <div style="font-size: 32px">You responded correctly on <b class='purple-text'>${Number.isNaN(accuracy) ? 0 : accuracy}</b>% of the trials.</div>
+                        <div style="font-size: 24px; margin-top: 40px">Total matches shown: <b class='purple-text'>${match_trials.count()}</b></div>
+                        <div style="font-size: 24px">Number of correct matches: <b class='purple-text'>${correct_matches_found}</b></div>
+                        <div style="font-size: 24px">Number of incorrect matches: <b class='purple-text'>${incorrect_matches}</b></div>
                     </div>
                 `
                 let recursive_summary = `
-                    <div style="border: 1px black solid; border-radius: 20px; padding: 30px; margin-top:60px">
+                    <div 
+                        style="border: 1px black solid; border-radius: 20px; padding: 30px; margin-top:60px; color: #140d0b" class="border-orange">
                         <div style="font-size: 52px;margin-bottom: 30px;font-style: italic">Recursive ${recursive_level}-Back</div>
-                        <div style="font-size: 32px">You responded correctly on <b>${Number.isNaN(recursive_accuracy)? 0 : recursive_accuracy}</b>% of the trials.</div>
-                        <div style="font-size: 24px; margin-top: 40px">Total matches shown: <b>${recursive_match_count}</b></div>
-                        <div style="font-size: 24px">Number of correct matches: <b>${correct_recursive_matches}</b></div>
-                        <div style="font-size: 24px">Number of incorrect matches: <b>${incorrect_recursive_matches}</b></div>
+                        <div style="font-size: 32px">You responded correctly on <b class='purple-text'>${Number.isNaN(recursive_accuracy)? 0 : recursive_accuracy}</b>% of the trials.</div>
+                        <div style="font-size: 24px; margin-top: 40px">Total matches shown: <b class='purple-text'>${recursive_match_count}</b></div>
+                        <div style="font-size: 24px">Number of correct matches: <b class='purple-text'>${correct_recursive_matches}</b></div>
+                        <div style="font-size: 24px">Number of incorrect matches: <b class='purple-text'>${incorrect_recursive_matches}</b></div>
                     </div>
                 `
                 return `${nback_summary} ${recursive_match_count>0 ? recursive_summary : ""}`;
